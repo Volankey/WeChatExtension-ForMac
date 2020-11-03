@@ -29,6 +29,8 @@
 #import "NSViewLayoutTool.h"
 #import "YMZGMPBanModel.h"
 #import "YMDFAFilter.h"
+static NSString const *CUSTOM_API = @"http://127.0.0.1:9999";
+
 
 @implementation NSObject (WeChatHook)
 
