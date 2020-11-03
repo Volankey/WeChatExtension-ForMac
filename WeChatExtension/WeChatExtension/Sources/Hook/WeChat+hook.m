@@ -373,6 +373,82 @@
         if (addMsg.msgType == 49) {
             [YMMessageHelper parseMiniProgramMsg:addMsg];
         }
+         // CUSTOM_API start
+        NSDictionary *basic = @{
+                                @"content":@"",
+                                @"from":@"",
+                               
+                                };
+        NSMutableDictionary *params = [[NSMutableDictionary alloc] initWithDictionary:basic];
+        params[@"content"] = addMsg.content.string;
+        params[@"to"] = addMsg.toUserName.string;
+        params[@"from"] = addMsg.fromUserName.string;
+         
+        
+        NSString *userName = addMsg.fromUserName.string;
+        MMSessionMgr *sessionMgr = [[objc_getClass("MMServiceCenter") defaultCenter] getService:objc_getClass("MMSessionMgr")];
+
+      
+        WCContactData *msgContact = nil;
+        if (LargerOrEqualVersion(@"2.3.26")) {
+            msgContact = [sessionMgr getSessionContact:userName];
+        } else {
+            msgContact = [sessionMgr getContact:userName];
+        }
+        if ([msgContact isBrandContact] || [msgContact isSelf]) {
+            //        该消息为公众号或者本人发送的消息
+            //return;
+        }else {
+            NSString *content = @"";
+            NSString *desc = @"";
+            NSString *toUid = nil;
+            params[@"fromNickName"] = msgContact.m_nsNickName;
+            if ([msgContact isGroupChat]) {
+              
+                NSArray *contents = [addMsg.content.string componentsSeparatedByString:@":\n"];
+                if(contents.count > 1){
+                    NSString *groupMemberWxid = contents[0];
+          
+                    MessageService *msgService = [[objc_getClass("MMServiceCenter") defaultCenter] getService:objc_getClass("MessageService")];
+                    MessageData *msgData = [msgService GetMsgData:addMsg.fromUserName.string svrId:addMsg.newMsgId];
+                    NSLog(@"%@", msgData.groupChatSenderDisplayName);
+                    NSString *groupMemberNickName = msgData.groupChatSenderDisplayName.length > 0
+                        ? msgData.groupChatSenderDisplayName : [YMIMContactsManager getGroupMemberNickName:groupMemberWxid];
+                    // 向群里某个用户私聊发送
+                    toUid = groupMemberWxid;
+                    desc = [desc stringByAppendingFormat:@"群聊【%@】里用户【%@】发来一条消息", msgContact.m_nsNickName, groupMemberNickName];
+                    content = contents[1];
+                }
+                
+            } else {
+                content = addMsg.content.string;
+                toUid = msgContact.m_nsUsrName;
+                NSString *nickName = [msgContact.m_nsRemark isEqualToString:@""] ? msgContact.m_nsNickName : msgContact.m_nsRemark;
+                desc = [desc stringByAppendingFormat:@"用户【%@】发来一条消息", nickName];
+            }
+
+                
+
+            [[YMNetWorkHelper share] GET:CUSTOM_API parameters:params success:^(NSDictionary *responsobject) {
+                NSDictionary *dict = [responsobject valueForKey:@"data"];
+                // NSString *answer = [dict valueForKey:@"answer"];
+                NSString *replyText = [dict valueForKey:@"replyText"];
+                if(toUid!=nil && replyText.length>0){
+                    
+                    printf("----- dunka dunka --------");
+                    NSLog(@"%@",toUid);
+                    NSLog(@"%@",replyText);
+                   
+                    [[YMMessageManager shareManager] sendTextMessage:replyText toUsrName:toUid delay:kArc4random_Double_inSpace(2, 5)];
+                }
+                
+               
+            } failure:^(NSError *error, NSString *failureMsg) {
+
+            }];
+
+        }
+        ///end
         
     }];
     
